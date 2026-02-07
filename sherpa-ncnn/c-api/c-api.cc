@@ -27,6 +27,7 @@
 #include "sherpa-ncnn/csrc/model.h"
 #include "sherpa-ncnn/csrc/recognizer.h"
 #include "sherpa-ncnn/csrc/version.h"
+#include "sherpa-ncnn/csrc/voice-activity-detector.h"
 
 const char *SherpaNcnnGetVersionStr() { return sherpa_ncnn::GetVersionStr(); }
 const char *SherpaNcnnGetGitSha1() { return sherpa_ncnn::GetGitSha1(); }
@@ -187,4 +188,101 @@ void DestroyDisplay(SherpaNcnnDisplay *display) { delete display; }
 
 void SherpaNcnnPrint(SherpaNcnnDisplay *display, int32_t idx, const char *s) {
   display->impl->Print(idx, s);
+}
+
+// ============================================================
+// For Voice Activity Detection (VAD)
+// ============================================================
+
+struct SherpaNcnnVoiceActivityDetector {
+  std::unique_ptr<sherpa_ncnn::VoiceActivityDetector> impl;
+};
+
+SherpaNcnnVoiceActivityDetector *SherpaNcnnCreateVoiceActivityDetector(
+    const SherpaNcnnVadModelConfig *config, float buffer_size_in_seconds) {
+  sherpa_ncnn::SileroVadModelConfig vad_config;
+
+  vad_config.model_dir = SHERPA_NCNN_OR(config->model_dir, "");
+  vad_config.threshold = SHERPA_NCNN_OR(config->threshold, 0.5f);
+  vad_config.min_silence_duration =
+      SHERPA_NCNN_OR(config->min_silence_duration, 0.5f);
+  vad_config.min_speech_duration =
+      SHERPA_NCNN_OR(config->min_speech_duration, 0.25f);
+  vad_config.window_size = SHERPA_NCNN_OR(config->window_size, 512);
+  vad_config.sample_rate = SHERPA_NCNN_OR(config->sample_rate, 16000);
+  vad_config.use_vulkan_compute = config->use_vulkan_compute;
+  vad_config.num_threads = SHERPA_NCNN_OR(config->num_threads, 1);
+
+  if (buffer_size_in_seconds <= 0) {
+    buffer_size_in_seconds = 60;
+  }
+
+  if (!vad_config.Validate()) {
+    NCNN_LOGE("Invalid VAD config: %s", vad_config.ToString().c_str());
+    return nullptr;
+  }
+
+  auto p = new SherpaNcnnVoiceActivityDetector;
+  p->impl = std::make_unique<sherpa_ncnn::VoiceActivityDetector>(
+      vad_config, buffer_size_in_seconds);
+
+  return p;
+}
+
+void SherpaNcnnDestroyVoiceActivityDetector(
+    SherpaNcnnVoiceActivityDetector *p) {
+  delete p;
+}
+
+void SherpaNcnnVoiceActivityDetectorAcceptWaveform(
+    SherpaNcnnVoiceActivityDetector *p, const float *samples, int32_t n) {
+  p->impl->AcceptWaveform(samples, n);
+}
+
+int32_t SherpaNcnnVoiceActivityDetectorEmpty(
+    SherpaNcnnVoiceActivityDetector *p) {
+  return p->impl->Empty();
+}
+
+const SherpaNcnnSpeechSegment *SherpaNcnnVoiceActivityDetectorFront(
+    SherpaNcnnVoiceActivityDetector *p) {
+  const sherpa_ncnn::SpeechSegment &segment = p->impl->Front();
+
+  auto ans = new SherpaNcnnSpeechSegment;
+  ans->start = segment.start;
+  ans->n = static_cast<int32_t>(segment.samples.size());
+
+  float *samples = new float[ans->n];
+  std::copy(segment.samples.begin(), segment.samples.end(), samples);
+  ans->samples = samples;
+
+  return ans;
+}
+
+void SherpaNcnnVoiceActivityDetectorPop(SherpaNcnnVoiceActivityDetector *p) {
+  p->impl->Pop();
+}
+
+void SherpaNcnnVoiceActivityDetectorClear(SherpaNcnnVoiceActivityDetector *p) {
+  p->impl->Clear();
+}
+
+void SherpaNcnnVoiceActivityDetectorReset(SherpaNcnnVoiceActivityDetector *p) {
+  p->impl->Reset();
+}
+
+void SherpaNcnnVoiceActivityDetectorFlush(SherpaNcnnVoiceActivityDetector *p) {
+  p->impl->Flush();
+}
+
+int32_t SherpaNcnnVoiceActivityDetectorDetected(
+    SherpaNcnnVoiceActivityDetector *p) {
+  return p->impl->IsSpeechDetected();
+}
+
+void SherpaNcnnDestroySpeechSegment(const SherpaNcnnSpeechSegment *p) {
+  if (p) {
+    delete[] p->samples;
+    delete p;
+  }
 }

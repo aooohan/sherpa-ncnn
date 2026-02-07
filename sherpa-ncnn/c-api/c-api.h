@@ -281,6 +281,151 @@ SHERPA_NCNN_API int32_t IsEndpoint(SherpaNcnnRecognizer *p,
 // for displaying results on Linux/macOS.
 SHERPA_NCNN_API typedef struct SherpaNcnnDisplay SherpaNcnnDisplay;
 
+// ============================================================
+// For Voice Activity Detection (VAD)
+// ============================================================
+
+/// Configuration for Silero VAD model
+SHERPA_NCNN_API typedef struct SherpaNcnnVadModelConfig {
+  /// Path to the directory containing silero.ncnn.param and silero.ncnn.bin
+  const char *model_dir;
+
+  /// Threshold to classify a segment as speech.
+  /// If the predicted probability of a segment is larger than this value,
+  /// then it is classified as speech.
+  /// Default: 0.5
+  float threshold;
+
+  /// Minimum silence duration in seconds.
+  /// If the duration of silence is less than this value, the silence segment
+  /// is not considered as a boundary.
+  /// Default: 0.5
+  float min_silence_duration;
+
+  /// Minimum speech duration in seconds.
+  /// If the duration of speech is less than this value, it is considered
+  /// as noise and discarded.
+  /// Default: 0.25
+  float min_speech_duration;
+
+  /// 512, 1024, 1536 samples for 16000 Hz
+  /// 256, 512, 768 samples for 8000 Hz
+  /// Default: 512
+  int32_t window_size;
+
+  /// Sample rate of the input audio. Can be 8000 or 16000.
+  /// Default: 16000
+  int32_t sample_rate;
+
+  /// If it is non-zero, and GPU is available, and ncnn is built with Vulkan,
+  /// then it will use GPU for computation. Otherwise, it uses CPU.
+  int32_t use_vulkan_compute;
+
+  /// Number of threads for neural network computation.
+  /// Default: 1
+  int32_t num_threads;
+} SherpaNcnnVadModelConfig;
+
+/// Represents a speech segment detected by VAD.
+SHERPA_NCNN_API typedef struct SherpaNcnnSpeechSegment {
+  /// The start sample index of this segment in the original audio.
+  int32_t start;
+
+  /// Pointer to the audio samples of this segment.
+  /// The samples are normalized to [-1, 1].
+  const float *samples;
+
+  /// Number of samples in this segment.
+  int32_t n;
+} SherpaNcnnSpeechSegment;
+
+/// Opaque pointer for the Voice Activity Detector.
+SHERPA_NCNN_API typedef struct SherpaNcnnVoiceActivityDetector
+    SherpaNcnnVoiceActivityDetector;
+
+/// Create a voice activity detector.
+///
+/// @param config Configuration for the VAD.
+/// @param buffer_size_in_seconds Size of the internal circular buffer in
+///                               seconds. Default: 60.
+/// @return Return a pointer to the VAD. The user has to invoke
+///         SherpaNcnnDestroyVoiceActivityDetector() to free it to avoid
+///         memory leak.
+SHERPA_NCNN_API SherpaNcnnVoiceActivityDetector *
+SherpaNcnnCreateVoiceActivityDetector(const SherpaNcnnVadModelConfig *config,
+                                      float buffer_size_in_seconds);
+
+/// Free a pointer returned by SherpaNcnnCreateVoiceActivityDetector().
+///
+/// @param p A pointer returned by SherpaNcnnCreateVoiceActivityDetector().
+SHERPA_NCNN_API void SherpaNcnnDestroyVoiceActivityDetector(
+    SherpaNcnnVoiceActivityDetector *p);
+
+/// Accept input audio samples.
+///
+/// @param p A pointer returned by SherpaNcnnCreateVoiceActivityDetector().
+/// @param samples A pointer to a 1-D array containing audio samples.
+///                The range of samples has to be normalized to [-1, 1].
+/// @param n Number of elements in the samples array.
+SHERPA_NCNN_API void SherpaNcnnVoiceActivityDetectorAcceptWaveform(
+    SherpaNcnnVoiceActivityDetector *p, const float *samples, int32_t n);
+
+/// Check whether the speech segment queue is empty.
+///
+/// @param p A pointer returned by SherpaNcnnCreateVoiceActivityDetector().
+/// @return Return 1 if the queue is empty; return 0 otherwise.
+SHERPA_NCNN_API int32_t
+SherpaNcnnVoiceActivityDetectorEmpty(SherpaNcnnVoiceActivityDetector *p);
+
+/// Return the first speech segment in the queue.
+/// It throws if the queue is empty.
+///
+/// @param p A pointer returned by SherpaNcnnCreateVoiceActivityDetector().
+/// @return Return the first speech segment. The user has to invoke
+///         SherpaNcnnDestroySpeechSegment() to free the returned pointer to
+///         avoid memory leak.
+SHERPA_NCNN_API const SherpaNcnnSpeechSegment *
+SherpaNcnnVoiceActivityDetectorFront(SherpaNcnnVoiceActivityDetector *p);
+
+/// Remove the first speech segment from the queue.
+/// It throws if the queue is empty.
+///
+/// @param p A pointer returned by SherpaNcnnCreateVoiceActivityDetector().
+SHERPA_NCNN_API void SherpaNcnnVoiceActivityDetectorPop(
+    SherpaNcnnVoiceActivityDetector *p);
+
+/// Clear the internal queue, removing all speech segments.
+///
+/// @param p A pointer returned by SherpaNcnnCreateVoiceActivityDetector().
+SHERPA_NCNN_API void SherpaNcnnVoiceActivityDetectorClear(
+    SherpaNcnnVoiceActivityDetector *p);
+
+/// Reset the voice activity detector.
+///
+/// @param p A pointer returned by SherpaNcnnCreateVoiceActivityDetector().
+SHERPA_NCNN_API void SherpaNcnnVoiceActivityDetectorReset(
+    SherpaNcnnVoiceActivityDetector *p);
+
+/// At the end of the utterance, invoke this method so that the last
+/// speech segment can be detected.
+///
+/// @param p A pointer returned by SherpaNcnnCreateVoiceActivityDetector().
+SHERPA_NCNN_API void SherpaNcnnVoiceActivityDetectorFlush(
+    SherpaNcnnVoiceActivityDetector *p);
+
+/// Check whether speech is currently detected.
+///
+/// @param p A pointer returned by SherpaNcnnCreateVoiceActivityDetector().
+/// @return Return 1 if speech is detected; return 0 otherwise.
+SHERPA_NCNN_API int32_t
+SherpaNcnnVoiceActivityDetectorDetected(SherpaNcnnVoiceActivityDetector *p);
+
+/// Free the pointer returned by SherpaNcnnVoiceActivityDetectorFront().
+///
+/// @param p A pointer returned by SherpaNcnnVoiceActivityDetectorFront().
+SHERPA_NCNN_API void SherpaNcnnDestroySpeechSegment(
+    const SherpaNcnnSpeechSegment *p);
+
 /// Create a display object. Must be freed using DestroyDisplay to avoid
 /// memory leak.
 SHERPA_NCNN_API SherpaNcnnDisplay *CreateDisplay(int32_t max_word_per_line);
