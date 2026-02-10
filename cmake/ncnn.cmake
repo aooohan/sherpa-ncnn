@@ -49,7 +49,7 @@ function(download_ncnn)
     )
   endif()
 
-  set(NCNN_PIXEL OFF CACHE BOOL "" FORCE)
+  set(NCNN_PIXEL ON CACHE BOOL "" FORCE)
   set(NCNN_PIXEL_ROTATE OFF CACHE BOOL "" FORCE)
   set(NCNN_PIXEL_AFFINE OFF CACHE BOOL "" FORCE)
   set(NCNN_PIXEL_DRAWING OFF CACHE BOOL "" FORCE)
@@ -80,7 +80,7 @@ function(download_ncnn)
     # Concat
     # Convolution
     # Crop
-    Deconvolution
+    # Deconvolution
     # Dropout
     # Eltwise
     ELU
@@ -93,7 +93,7 @@ function(download_ncnn)
     LRN
     # MemoryData
     MVN
-    Pooling
+    # Pooling
     Power
     PReLU
     Proposal
@@ -114,7 +114,7 @@ function(download_ncnn)
     # LSTM
     # BinaryOp
     # UnaryOp
-    ConvolutionDepthWise
+    # ConvolutionDepthWise
     # Padding # required by innerproduct and convolution
     # Squeeze
     # ExpandDims
@@ -122,7 +122,7 @@ function(download_ncnn)
     # Permute
     PriorBox
     DetectionOutput
-    Interp
+    # Interp
     DeconvolutionDepthWise
     ShuffleChannel
     InstanceNorm
@@ -137,9 +137,9 @@ function(download_ncnn)
     # Packing
     # Requantize
     # Cast  # needed InnerProduct
-    HardSigmoid
+    # HardSigmoid
     SELU
-    HardSwish
+    # HardSwish
     Noop
     PixelShuffle
     DeepCopy
