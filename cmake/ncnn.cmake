@@ -74,8 +74,8 @@ function(download_ncnn)
   set(disabled_layers
     AbsVal
     ArgMax
-    BatchNorm
-    Bias
+    # BatchNorm
+    # Bias
     BNLL
     # Concat
     # Convolution
@@ -101,7 +101,7 @@ function(download_ncnn)
     # ReLU
     # Reshape
     ROIPooling
-    Scale
+    # Scale
     # Sigmoid
     # Slice
     # Softmax
@@ -124,9 +124,9 @@ function(download_ncnn)
     DetectionOutput
     # Interp
     DeconvolutionDepthWise
-    ShuffleChannel
+    # ShuffleChannel
     InstanceNorm
-    Clip
+    # Clip
     Reorg
     YoloDetectionOutput
     # Quantize
